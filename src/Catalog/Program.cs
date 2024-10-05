@@ -1,10 +1,15 @@
+using Catalog.Infrastructure.ExternalService;
+using Catalog.Infrastructure.IntegrationEvents;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddApplicationServices();
+builder.AddLoggerConfigs();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
- 
+builder.Services.AddHttpClient<QuickLinkerService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

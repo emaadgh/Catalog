@@ -1,4 +1,6 @@
-﻿using Catalog.Infrastructure.IntegrationEvents;
+﻿using Catalog.Infrastructure.ExternalService;
+using Catalog.Infrastructure.IntegrationEvents;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Catalog.Endpoints;
 
@@ -13,7 +15,55 @@ public static class CatalogItemEndpoints
         app.MapGet("/{slug:required}", GetItemById);
         app.MapGet("/", GetItems);
 
+        app.MapPost("/{slug:required}/reminder", CreateRemindItem);
+
         return app;
+    }
+
+    public static async Task<Results<Ok, BadRequest<string>, NotFound<string>>> CreateRemindItem(
+        [FromQuery(Name = "user_id")] Guid userId,
+        [FromRoute] string slug,
+        [AsParameters] CatalogServices services,
+        IPublishEndpoint publishEndpoint,
+        QuickLinkerService quickLinkerService,
+        CancellationToken cancellationToken)
+    {
+        var Item = await services.Context.CatalogItems
+                                                .Include(c => c.Reminds)
+                                                .FirstOrDefaultAsync(i => i.Slug == slug, cancellationToken);
+        if (Item is null)
+        {
+            return TypedResults.NotFound($"Item with slug {slug} not found.");
+        }
+
+        if (Item.AvailableStock > 0)
+        {
+            return TypedResults.BadRequest($"Item with slug {slug} is already available");
+        }
+
+        if (Item.Reminds.Any(r => r.UserId == userId))
+        {
+            return TypedResults.BadRequest($"Item with slug {slug} is already has a reminder for this user");
+        }
+
+        string longURL = $"http://localhost:5074/api/v1/items/{slug}";
+        string shortURL = await quickLinkerService.GetShortURL(longURL);
+
+        var message = $"""
+            Hi, 
+            The Item {Item.Name} you requested is available Now!
+            Click on the link below to continue
+            {shortURL}
+            """;
+
+        var remindMessage = new CatalogRemindMessage(userId, slug, message, NotifyChannel.Email);
+
+        await publishEndpoint.Publish(remindMessage, cancellationToken);
+
+        Item.AddRemind(userId, DateTime.UtcNow);
+        await services.Context.SaveChangesAsync(cancellationToken);
+
+        return TypedResults.Ok();
     }
 
     public static async Task<Results<Created, ValidationProblem, BadRequest<string>>> CreateItem(

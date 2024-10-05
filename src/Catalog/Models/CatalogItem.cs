@@ -4,7 +4,7 @@ namespace Catalog.Models;
 public class CatalogItem
 {
     public const string TableName = "CatalogItems";
- 
+
     public string Name { get; private set; } = null!;
 
     public string Description { get; private set; } = null!;
@@ -18,6 +18,7 @@ public class CatalogItem
     public int MaxStockThreshold { get; private set; }
 
     public ICollection<CatalogMedia> Medias { get; private set; } = [];
+    public ICollection<CatalogRemind> Reminds { get; private set; } = [];
 
     public static CatalogItem Create(string name, string description, int maxStockThreshold, int brandId, int categoryId, decimal price = default)
     {
@@ -103,5 +104,10 @@ public class CatalogItem
     public void AddMedia(string fileName, string url)
     {
         Medias.Add(new CatalogMedia(fileName, url));
+    }
+
+    public void AddRemind(Guid userId, DateTime createdOn)
+    {
+        Reminds.Add(new CatalogRemind(userId, createdOn));
     }
 }

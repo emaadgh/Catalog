@@ -33,5 +33,16 @@ public sealed class CatalogItemEntityTypeConfiguration : IEntityTypeConfiguratio
                    .IsRequired()
                    .HasMaxLength(1098);
         });
+
+        builder.OwnsMany(x => x.Reminds, builder =>
+        {
+            builder.ToJson();
+
+            builder.Property(x => x.UserId)
+                   .IsRequired();
+
+            builder.Property(x => x.CreatedOn)
+                   .IsRequired();
+        });
     }
 }
